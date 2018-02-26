@@ -6,6 +6,7 @@ import android.os.Message;
 import android.util.Log;
 import java.io.*;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.io.IOException;
 import java.net.DatagramSocket;
@@ -13,12 +14,25 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 
 enum ConnectionState {
-    CONNECTING,
-    CONNECTED,
-    DISCONNECTED
+    CONNECTING("Connecting"),
+    CONNECTED("Connected"),
+    DISCONNECTED("Disconnected");
+
+    private String stringValue;
+    private int intValue;
+    private ConnectionState(String toString) {
+        stringValue = toString;
+    }
+
+    @Override
+    public String toString() {
+        return stringValue;
+    }
 }
 
 public class TcpClientThread extends Thread {
+
+    //public static final int TIMEOUTMS = 10000;
 
     String dstAddress;
     int dstPort;
@@ -38,6 +52,8 @@ public class TcpClientThread extends Thread {
         dstPort = port;
         this.handler = handler;
         currentState = ConnectionState.DISCONNECTED;
+
+        socket = new Socket();
     }
 
     private void setRunning(boolean running) {
@@ -45,31 +61,23 @@ public class TcpClientThread extends Thread {
     }
 
     public void disconnect() {
-        stopClient();
+        try {
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            Log.e("TCP", "C: Error closing socket", e);
+        }
     }
 
     private void updateState(ConnectionState state) {
         currentState = state;
-        String stateString = "Unknown";
-        switch (currentState){
-            case DISCONNECTED:
-                stateString = "Disconnected";
-                break;
-            case CONNECTING:
-                stateString = "Connecting";
-                break;
-            case CONNECTED:
-                stateString = "Connected";
-                break;
-            default:
-                break;
-        }
-        Log.e("TCP Client", "C: " + stateString);
+        Log.e("TCP Client", "C: " + state.toString());
         handler.sendMessage(
                 Message.obtain(handler, MainActivity.TcpClientHandler.UPDATE_STATE, null));
     }
 
     public void stopClient() {
+        Log.e("TCP Client", "C: Stopping");
         updateState(ConnectionState.DISCONNECTED);
 
         if (bufferOut != null) {
@@ -104,12 +112,11 @@ public class TcpClientThread extends Thread {
 
         try {
             InetAddress address = InetAddress.getByName(dstAddress);
-
-            socket = new Socket(address, dstPort);
-            updateState(ConnectionState.CONNECTED);
+            socket.connect(new InetSocketAddress(address, dstPort));
 
             try {
-                //send the message to the server
+                updateState(ConnectionState.CONNECTED);
+
                 bufferOut =
                         new PrintWriter(
                             new BufferedWriter(
@@ -128,6 +135,7 @@ public class TcpClientThread extends Thread {
                     serverMessage = null;
                 }
                 socket.close();
+                Log.e("TCP Client", "C: Normal shutdown");
                 stopClient();
 
             } catch (SocketException e) {
@@ -147,6 +155,7 @@ public class TcpClientThread extends Thread {
         } catch (Exception e) {
             e.printStackTrace();
             Log.e("TCP", "C: Error", e);
+            Log.e("TCP Client", "C: Socket closed shutdown");
             stopClient();
         }
     }
