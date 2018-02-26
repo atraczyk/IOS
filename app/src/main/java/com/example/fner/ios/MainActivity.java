@@ -19,6 +19,8 @@ public class MainActivity extends AppCompatActivity
     TextView textViewStatus, textViewRx;
 
     TcpClientHandler tcpClientHandler;
+
+    // local reference
     TcpClientThread tcpClientThread;
 
     @Override
@@ -33,6 +35,8 @@ public class MainActivity extends AppCompatActivity
         textViewRx = (TextView)findViewById(R.id.received);
 
         buttonConnect.setOnClickListener(buttonConnectOnClickListener);
+
+        tcpClientHandler = new TcpClientHandler(this);
     }
 
     View.OnClickListener buttonConnectOnClickListener =
@@ -58,11 +62,11 @@ public class MainActivity extends AppCompatActivity
             };
 
     private void connect() {
-        tcpClientHandler = new TcpClientHandler(this);
-        tcpClientThread = new TcpClientThread(
+        ConnectionManager.getInstance().tcpClientThread = new TcpClientThread(
                 editTextAddress.getText().toString(),
                 Integer.parseInt(editTextPort.getText().toString()),
                 tcpClientHandler);
+        tcpClientThread = ConnectionManager.getInstance().tcpClientThread;
         buttonConnect.setEnabled(false);
         tcpClientThread.start();
     }

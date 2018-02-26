@@ -1,7 +1,5 @@
 package com.example.fner.ios;
 
-import android.os.Handler;
-import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import java.io.*;
@@ -9,7 +7,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 
@@ -31,13 +28,11 @@ enum ConnectionState {
 }
 
 public class TcpClientThread extends Thread {
-
-    //public static final int TIMEOUTMS = 10000;
-
     String dstAddress;
     int dstPort;
     private boolean running;
-    MainActivity.TcpClientHandler handler;
+    MainActivity.TcpClientHandler mainHandler;
+    InputActivity.TcpClientHandler inputHandler;
     String serverMessage;
     Socket socket;
 
@@ -50,7 +45,7 @@ public class TcpClientThread extends Thread {
         super();
         dstAddress = addr;
         dstPort = port;
-        this.handler = handler;
+        this.mainHandler = handler;
         currentState = ConnectionState.DISCONNECTED;
 
         socket = new Socket();
@@ -72,13 +67,16 @@ public class TcpClientThread extends Thread {
     private void updateState(ConnectionState state) {
         currentState = state;
         Log.e("TCP Client", "C: " + state.toString());
-        handler.sendMessage(
-                Message.obtain(handler, MainActivity.TcpClientHandler.UPDATE_STATE, null));
+        mainHandler.sendMessage(
+                Message.obtain(mainHandler, MainActivity.TcpClientHandler.UPDATE_STATE, null));
     }
 
     public void stopClient() {
         Log.e("TCP Client", "C: Stopping");
         updateState(ConnectionState.DISCONNECTED);
+
+        inputHandler.sendMessage(
+                Message.obtain(inputHandler, InputActivity.TcpClientHandler.UPDATE_END, null));
 
         if (bufferOut != null) {
             bufferOut.flush();
@@ -90,13 +88,12 @@ public class TcpClientThread extends Thread {
         serverMessage = null;
     }
 
-    public void sendData(final String message) {
+    public void sendData(final String data) {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
                 if (bufferOut != null) {
-                    Log.e("TCP Client", "Sending: " + message);
-                    bufferOut.println(message + "\0");
+                    bufferOut.println(data + "\0");
                     bufferOut.flush();
                 }
             }
@@ -127,9 +124,9 @@ public class TcpClientThread extends Thread {
                 while (running) {
                     serverMessage = bufferIn.readLine();
 
-                    if (serverMessage != null && handler != null) {
-                        handler.sendMessage(
-                                Message.obtain(handler, MainActivity.TcpClientHandler.UPDATE_MSG, serverMessage));
+                    if (serverMessage != null && mainHandler != null) {
+                        mainHandler.sendMessage(
+                                Message.obtain(mainHandler, MainActivity.TcpClientHandler.UPDATE_MSG, serverMessage));
                         Log.e("RESPONSE FROM SERVER", "S: Received Message: '" + serverMessage + "'");
                     }
                     serverMessage = null;
