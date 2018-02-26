@@ -75,8 +75,10 @@ public class TcpClientThread extends Thread {
         Log.e("TCP Client", "C: Stopping");
         updateState(ConnectionState.DISCONNECTED);
 
-        inputHandler.sendMessage(
-                Message.obtain(inputHandler, InputActivity.TcpClientHandler.UPDATE_END, null));
+        if (inputHandler != null) {
+            inputHandler.sendMessage(
+                    Message.obtain(inputHandler, InputActivity.TcpClientHandler.UPDATE_END, null));
+        }
 
         if (bufferOut != null) {
             bufferOut.flush();
